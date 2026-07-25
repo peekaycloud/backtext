@@ -50,7 +50,12 @@ Or deploy the folder as a **static site** on Vercel:
 ### Text
 - Layouts: single, ribbon, circular, spiral, wave, wrap subject, contour, torn, …
 - Finishes: neon, extrude, melt, cast shadow, split color, paper slab, particles, …
+- **Componentry-inspired animations** (canvas ports of [harshjdhv/componentry](https://github.com/harshjdhv/componentry)):
+  - Kinetic reveal, Letter cascade, Hyper scramble, Split flap
+  - Text repel (cursor), Marquee, Blur reveal, Slide reveal, Scale pop
 - Blend modes + pattern fills
+
+> These are **not** the React/Framer Motion components from Componentry — the motion ideas are reimplemented for Backtext’s canvas pipeline so they work behind the subject cutout and in MP4 export.
 
 ### Subject
 - Text behind cutout (default once segmented)

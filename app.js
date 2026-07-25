@@ -20,7 +20,7 @@ import {
   drawTextEffects,
   drawStickerSubject,
   drawSubjectPaper,
-} from './effects.js?v=23';
+} from './effects.js?v=24';
 
 import {
   EffectStack,
@@ -32,7 +32,7 @@ import {
   exportCubeLUT,
   downloadText,
   makeCanvas,
-} from './pipeline.js?v=23';
+} from './pipeline.js?v=24';
 
 const MAX_DIM = 1600; // processing cap; keeps segmentation and export snappy
 const SEGMENT_TIMEOUT_MS = 90_000;

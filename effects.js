@@ -38,6 +38,17 @@ export const FINISHES = [
   { id: 'glass', label: 'Glass' },
   { id: 'explosion', label: 'Explosion' },
   { id: 'kinetic', label: 'Kinetic' },
+  // Componentry-inspired text animations (ported to canvas)
+  // https://github.com/harshjdhv/componentry
+  { id: 'kineticReveal', label: 'Kinetic reveal' },
+  { id: 'letterCascade', label: 'Letter cascade' },
+  { id: 'hyperText', label: 'Hyper scramble' },
+  { id: 'splitFlap', label: 'Split flap' },
+  { id: 'textRepel', label: 'Text repel' },
+  { id: 'marquee', label: 'Marquee' },
+  { id: 'blurReveal', label: 'Blur reveal' },
+  { id: 'slideReveal', label: 'Slide reveal' },
+  { id: 'scalePop', label: 'Scale pop' },
   { id: 'paper', label: 'Paper cut' },
   { id: 'paperFolded', label: 'Folded paper' },
   { id: 'paperRolled', label: 'Rolled paper' },
@@ -95,8 +106,25 @@ export function needsAnimation(finish) {
     finish === 'kinetic' ||
     finish === 'noise' ||
     finish === 'ink' ||
-    finish === 'glass'
+    finish === 'glass' ||
+    isComponentryAnimFinish(finish)
   );
+}
+
+const COMPONENTRY_ANIM_FINISHES = new Set([
+  'kineticReveal',
+  'letterCascade',
+  'hyperText',
+  'splitFlap',
+  'textRepel',
+  'marquee',
+  'blurReveal',
+  'slideReveal',
+  'scalePop',
+]);
+
+export function isComponentryAnimFinish(finish) {
+  return COMPONENTRY_ANIM_FINISHES.has(finish);
 }
 
 export const SUBJECT_MOTIONS = [
@@ -2003,6 +2031,7 @@ export function drawTextEffects(ctx, state, { fg, mask, behind, time }) {
   else if (finish === 'smoke') applySmoke(ctx, state, time, drawText);
   else if (finish === 'liquid') applyLiquid(ctx, state, fg, time, drawText);
   else if (finish === 'explosion' || finish === 'kinetic') drawBroken(ctx, state, paint, time);
+  else if (isComponentryAnimFinish(finish)) applyComponentryAnim(ctx, state, paint, time, finish);
   else drawText(ctx);
 
   ctx.restore();
@@ -2013,4 +2042,357 @@ export function drawTextEffects(ctx, state, { fg, mask, behind, time }) {
     sticker: !!state.sticker,
     breakout: !!state.breakout,
   };
+}
+
+/* ========================================================================
+ * Componentry-inspired text animations — canvas ports of concepts from
+ * https://github.com/harshjdhv/componentry (React/Framer Motion originals).
+ * ======================================================================== */
+
+const HYPER_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+const FLAP_CHARS = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$.,!?:;+-=%&#@';
+
+function easeOutCubic(t) {
+  return 1 - (1 - t) ** 3;
+}
+
+function easeOutBack(t) {
+  const c = 1.70158;
+  const t1 = t - 1;
+  return 1 + (c + 1) * t1 ** 3 + c * t1 ** 2;
+}
+
+function loopWave(time, periodMs, stagger, index) {
+  const t = ((time - index * stagger * periodMs) / periodMs) % 1;
+  return t < 0 ? t + 1 : t;
+}
+
+/** Per-glyph slots for multiline centered text in local (rotated) space. */
+function glyphSlots(c, state) {
+  applyFont(c, state);
+  const lines = (state.text || 'TEXT').split('\n');
+  const lh = state.size * state.lineHeight;
+  const total = lh * (lines.length - 1);
+  const slots = [];
+  let gi = 0;
+  lines.forEach((line, li) => {
+    const chars = Array.from(line);
+    if (!chars.length) return;
+    const widths = chars.map((ch) => c.measureText(ch === ' ' ? '·' : ch).width + state.letterSpacing);
+    const lineW = widths.reduce((a, b) => a + b, 0);
+    let x = -lineW / 2;
+    const y = li * lh - total / 2;
+    chars.forEach((ch, ci) => {
+      const w = widths[ci];
+      slots.push({
+        g: ch,
+        x: x + w / 2,
+        y,
+        w,
+        i: gi++,
+        line: li,
+        space: /\s/.test(ch),
+      });
+      x += w;
+    });
+  });
+  return slots;
+}
+
+function withTextOrigin(c, state, fn) {
+  c.save();
+  c.translate(state.x * state.w, state.y * state.h);
+  c.rotate((state.rotation * Math.PI) / 180);
+  c.globalAlpha = state.opacity;
+  applyFont(c, state);
+  fn();
+  c.restore();
+}
+
+function pointerInTextSpace(state) {
+  const px = (state.pointerX ?? 0.5) * state.w;
+  const py = (state.pointerY ?? 0.5) * state.h;
+  const ox = state.x * state.w;
+  const oy = state.y * state.h;
+  const r = (-state.rotation * Math.PI) / 180;
+  const dx = px - ox;
+  const dy = py - oy;
+  return {
+    x: dx * Math.cos(r) - dy * Math.sin(r),
+    y: dx * Math.sin(r) + dy * Math.cos(r),
+  };
+}
+
+function paintGlyphAt(c, paint, g, x, y) {
+  if (!g || /\s/.test(g)) return;
+  paint(c, g, x, y);
+}
+
+function applyComponentryAnim(ctx, state, paint, time, finish) {
+  switch (finish) {
+    case 'kineticReveal':
+      return drawKineticReveal(ctx, state, paint, time);
+    case 'letterCascade':
+      return drawLetterCascade(ctx, state, paint, time);
+    case 'hyperText':
+      return drawHyperText(ctx, state, paint, time);
+    case 'splitFlap':
+      return drawSplitFlap(ctx, state, paint, time);
+    case 'textRepel':
+      return drawTextRepel(ctx, state, paint);
+    case 'marquee':
+      return drawMarquee(ctx, state, paint, time);
+    case 'blurReveal':
+      return drawBlurReveal(ctx, state, paint, time);
+    case 'slideReveal':
+      return drawSlideReveal(ctx, state, paint, time);
+    case 'scalePop':
+      return drawScalePop(ctx, state, paint, time);
+    default:
+      drawSingle(ctx, state, paint);
+  }
+}
+
+/** Staggered slide-up / fade reveal (kinetic-text-reveal). */
+function drawKineticReveal(ctx, state, paint, time) {
+  withTextOrigin(ctx, state, () => {
+    const slots = glyphSlots(ctx, state);
+    const period = 2200;
+    const dist = state.size * 0.55;
+    for (const s of slots) {
+      if (s.space) continue;
+      const t = loopWave(time, period, 0.045, s.i);
+      // Hold visible in the middle of the loop
+      let p;
+      if (t < 0.35) p = easeOutCubic(t / 0.35);
+      else if (t < 0.75) p = 1;
+      else p = 1 - easeOutCubic((t - 0.75) / 0.25);
+      ctx.save();
+      ctx.globalAlpha = state.opacity * p;
+      ctx.translate(s.x, s.y + dist * (1 - p));
+      paintGlyphAt(ctx, paint, s.g, 0, 0);
+      ctx.restore();
+    }
+  });
+}
+
+/** Flip-cascade per letter (letter-cascade). */
+function drawLetterCascade(ctx, state, paint, time) {
+  withTextOrigin(ctx, state, () => {
+    const slots = glyphSlots(ctx, state);
+    const period = 2400;
+    for (const s of slots) {
+      if (s.space) continue;
+      const t = loopWave(time, period, 0.05, s.i);
+      // 0→0.5: front flips away; 0.5→1: echo lands
+      let scaleY = 1;
+      let dy = 0;
+      let alpha = 1;
+      if (t < 0.45) {
+        const u = easeOutCubic(t / 0.45);
+        scaleY = Math.cos(u * Math.PI / 2);
+        dy = -state.size * 0.08 * u;
+        alpha = 1 - u * 0.35;
+      } else if (t < 0.55) {
+        scaleY = 0.05;
+        alpha = 0.2;
+      } else {
+        const u = easeOutBack(Math.min(1, (t - 0.55) / 0.45));
+        scaleY = Math.sin(u * Math.PI / 2);
+        dy = state.size * 0.1 * (1 - u);
+        alpha = 0.4 + 0.6 * u;
+      }
+      ctx.save();
+      ctx.globalAlpha = state.opacity * Math.max(0.05, alpha);
+      ctx.translate(s.x, s.y + dy);
+      ctx.scale(1, Math.max(0.08, scaleY));
+      paintGlyphAt(ctx, paint, s.g, 0, 0);
+      ctx.restore();
+    }
+  });
+}
+
+/** Cyberpunk scramble → reveal (hyper-text). */
+function drawHyperText(ctx, state, paint, time) {
+  withTextOrigin(ctx, state, () => {
+    const slots = glyphSlots(ctx, state);
+    const period = 2800;
+    const cycle = (time % period) / period;
+    const reveal = Math.min(1, cycle / 0.7) * slots.length;
+    for (const s of slots) {
+      if (s.space) continue;
+      let ch = s.g;
+      if (s.i > reveal) {
+        const seed = Math.floor(time / 40 + s.i * 7.3);
+        ch = HYPER_ALPHABET[seed % HYPER_ALPHABET.length];
+      } else if (s.i > reveal - 1.5) {
+        const seed = Math.floor(time / 30 + s.i * 3.1);
+        ch = HYPER_ALPHABET[seed % HYPER_ALPHABET.length];
+      }
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      paintGlyphAt(ctx, paint, ch, 0, 0);
+      ctx.restore();
+    }
+  });
+}
+
+/** Airport-board flip through charset (split-flap-display). */
+function drawSplitFlap(ctx, state, paint, time) {
+  withTextOrigin(ctx, state, () => {
+    const slots = glyphSlots(ctx, state);
+    const period = 3200;
+    const flipSpeed = 55;
+    for (const s of slots) {
+      if (s.space) continue;
+      const start = s.i * 90;
+      const elapsed = Math.max(0, (time % period) - start);
+      const target = (s.g || ' ').toUpperCase();
+      const targetIdx = Math.max(0, FLAP_CHARS.indexOf(target));
+      const steps = Math.min(targetIdx + FLAP_CHARS.length, Math.floor(elapsed / flipSpeed));
+      const ch = FLAP_CHARS[steps % FLAP_CHARS.length] || target;
+      const flipping = steps < targetIdx && (time % period) < period * 0.85;
+      const flipPhase = flipping ? ((elapsed / flipSpeed) % 1) : 0;
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      if (flipping) {
+        ctx.scale(1, Math.max(0.15, Math.cos(flipPhase * Math.PI)));
+      }
+      // Cell plate
+      const cellW = Math.max(s.w, state.size * 0.55);
+      const cellH = state.size * 0.95;
+      ctx.fillStyle = 'rgba(20,18,14,0.55)';
+      ctx.fillRect(-cellW / 2, -cellH / 2, cellW, cellH);
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.strokeRect(-cellW / 2 + 0.5, -cellH / 2 + 0.5, cellW - 1, cellH - 1);
+      ctx.beginPath();
+      ctx.moveTo(-cellW / 2, 0);
+      ctx.lineTo(cellW / 2, 0);
+      ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+      ctx.stroke();
+      paintGlyphAt(ctx, paint, ch === ' ' ? target : ch, 0, 0);
+      ctx.restore();
+    }
+  });
+}
+
+/** Cursor pushes / pulls letters (text-repel). */
+function drawTextRepel(ctx, state, paint) {
+  withTextOrigin(ctx, state, () => {
+    const slots = glyphSlots(ctx, state);
+    const mouse = pointerInTextSpace(state);
+    const radius = state.size * 2.8;
+    const strength = state.size * 0.85;
+    for (const s of slots) {
+      if (s.space) continue;
+      const dx = s.x - mouse.x;
+      const dy = s.y - mouse.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      let ox = 0;
+      let oy = 0;
+      let rot = 0;
+      if (dist < radius) {
+        const force = ((1 - dist / radius) ** 2) * strength;
+        ox = (dx / dist) * force;
+        oy = (dy / dist) * force;
+        rot = ox * 0.004;
+      }
+      ctx.save();
+      ctx.translate(s.x + ox, s.y + oy);
+      ctx.rotate(rot);
+      paintGlyphAt(ctx, paint, s.g, 0, 0);
+      ctx.restore();
+    }
+  });
+}
+
+/** Horizontal velocity marquee (scroll-based-velocity). */
+function drawMarquee(ctx, state, paint, time) {
+  const phrase = (state.text || 'TEXT').replace(/\n+/g, ' ').trim() || 'TEXT';
+  applyFont(ctx, state);
+  const gap = state.size * 0.8;
+  const unitW = ctx.measureText(phrase).width + gap;
+  const speed = state.size * 0.9;
+  const offset = -((time / 1000) * speed) % unitW;
+  ctx.save();
+  ctx.translate(0, state.y * state.h);
+  ctx.rotate((state.rotation * Math.PI) / 180);
+  ctx.globalAlpha = state.opacity;
+  applyFont(ctx, state);
+  const y = 0;
+  const startX = offset - unitW;
+  for (let x = startX; x < state.w + unitW; x += unitW) {
+    paint(ctx, phrase, x + unitW / 2, y);
+  }
+  ctx.restore();
+}
+
+/** Blur + rise stagger (text-animate blurInUp). */
+function drawBlurReveal(ctx, state, paint, time) {
+  withTextOrigin(ctx, state, () => {
+    const slots = glyphSlots(ctx, state);
+    const period = 2400;
+    for (const s of slots) {
+      if (s.space) continue;
+      const t = loopWave(time, period, 0.05, s.i);
+      let p;
+      if (t < 0.4) p = easeOutCubic(t / 0.4);
+      else if (t < 0.7) p = 1;
+      else p = 1 - easeOutCubic((t - 0.7) / 0.3);
+      const blur = (1 - p) * Math.min(12, state.size * 0.08);
+      ctx.save();
+      ctx.globalAlpha = state.opacity * Math.max(0.05, p);
+      ctx.filter = blur > 0.4 ? `blur(${blur}px)` : 'none';
+      ctx.translate(s.x, s.y + (1 - p) * state.size * 0.35);
+      paintGlyphAt(ctx, paint, s.g, 0, 0);
+      ctx.restore();
+    }
+    ctx.filter = 'none';
+  });
+}
+
+/** Alternating slide-in (text-animate slideLeft/Right). */
+function drawSlideReveal(ctx, state, paint, time) {
+  withTextOrigin(ctx, state, () => {
+    const slots = glyphSlots(ctx, state);
+    const period = 2300;
+    const dist = state.size * 0.9;
+    for (const s of slots) {
+      if (s.space) continue;
+      const t = loopWave(time, period, 0.04, s.i);
+      let p;
+      if (t < 0.4) p = easeOutCubic(t / 0.4);
+      else if (t < 0.72) p = 1;
+      else p = 1 - easeOutCubic((t - 0.72) / 0.28);
+      const dir = s.i % 2 === 0 ? 1 : -1;
+      ctx.save();
+      ctx.globalAlpha = state.opacity * p;
+      ctx.translate(s.x + dir * dist * (1 - p), s.y);
+      paintGlyphAt(ctx, paint, s.g, 0, 0);
+      ctx.restore();
+    }
+  });
+}
+
+/** Scale-up pop stagger (text-animate scaleUp). */
+function drawScalePop(ctx, state, paint, time) {
+  withTextOrigin(ctx, state, () => {
+    const slots = glyphSlots(ctx, state);
+    const period = 2100;
+    for (const s of slots) {
+      if (s.space) continue;
+      const t = loopWave(time, period, 0.048, s.i);
+      let p;
+      if (t < 0.4) p = easeOutBack(t / 0.4);
+      else if (t < 0.7) p = 1;
+      else p = 1 - easeOutCubic((t - 0.7) / 0.3);
+      const scale = 0.35 + 0.65 * p;
+      ctx.save();
+      ctx.globalAlpha = state.opacity * Math.max(0.05, p);
+      ctx.translate(s.x, s.y);
+      ctx.scale(scale, scale);
+      paintGlyphAt(ctx, paint, s.g, 0, 0);
+      ctx.restore();
+    }
+  });
 }
