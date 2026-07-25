@@ -20,7 +20,7 @@ import {
   drawTextEffects,
   drawStickerSubject,
   drawSubjectPaper,
-} from './effects.js?v=22';
+} from './effects.js?v=23';
 
 import {
   EffectStack,
@@ -32,7 +32,7 @@ import {
   exportCubeLUT,
   downloadText,
   makeCanvas,
-} from './pipeline.js?v=22';
+} from './pipeline.js?v=23';
 
 const MAX_DIM = 1600; // processing cap; keeps segmentation and export snappy
 const SEGMENT_TIMEOUT_MS = 90_000;
@@ -109,6 +109,7 @@ const els = {
   maskEraseBtn: document.getElementById('maskEraseBtn'),
   maskClearBtn: document.getElementById('maskClearBtn'),
   exportLutBtn: document.getElementById('exportLutBtn'),
+  clearStackBtn: document.getElementById('clearStackBtn'),
   paperControls: document.getElementById('paperControls'),
   paperThickness: document.getElementById('paperThickness'),
   paperThicknessValue: document.getElementById('paperThicknessValue'),
@@ -812,6 +813,12 @@ function syncPositionSliders() {
 }
 
 function bindEffectChips() {
+  const chipDefaults = {
+    layout: 'single',
+    finish: 'none',
+    subjectEffect: 'none',
+    subjectMotion: 'none',
+  };
   const mount = (el, items, key) => {
     el.innerHTML = '';
     for (const item of items) {
@@ -823,9 +830,15 @@ function bindEffectChips() {
       btn.setAttribute('role', 'radio');
       btn.setAttribute('aria-checked', state[key] === item.id ? 'true' : 'false');
       btn.addEventListener('click', () => {
-        state[key] = item.id;
+        // Re-clicking the active option clears back to the section default.
+        const fallback = chipDefaults[key];
+        if (state[key] === item.id && fallback != null && item.id !== fallback) {
+          state[key] = fallback;
+        } else {
+          state[key] = item.id;
+        }
         for (const child of el.children) {
-          child.setAttribute('aria-checked', child.dataset.id === item.id ? 'true' : 'false');
+          child.setAttribute('aria-checked', child.dataset.id === state[key] ? 'true' : 'false');
         }
         if (key === 'finish' || key === 'subjectEffect') syncPaperControls();
         if (key === 'subjectEffect') invalidateSubjectBitmap();
@@ -997,27 +1010,35 @@ function refreshStackList() {
     empty.className = 'stack-empty';
     empty.textContent = 'No effects yet — pick one above and click Add.';
     els.effectStackList.appendChild(empty);
+    if (els.clearStackBtn) els.clearStackBtn.hidden = true;
     return;
   }
+  if (els.clearStackBtn) els.clearStackBtn.hidden = false;
   state.stack.effects.forEach((fx, index) => {
     const li = document.createElement('li');
     const active = fx.id === state.selectedEffectId;
-    li.className = 'stack-item' + (active ? ' is-active' : '');
+    li.className = 'stack-item' + (active ? ' is-active' : '') + (fx.enabled ? '' : ' is-off');
     li.innerHTML = `
       <div class="stack-item-row">
-        <input type="checkbox" ${fx.enabled ? 'checked' : ''} title="Enabled" />
+        <label class="stack-enable" title="Toggle effect on or off">
+          <input type="checkbox" ${fx.enabled ? 'checked' : ''} />
+          <span>${fx.enabled ? 'On' : 'Off'}</span>
+        </label>
         <span class="stack-item-name">${index + 1}. ${fx.constructor.label}</span>
         <span class="stack-item-actions">
-          <button type="button" data-act="up" title="Move up">↑</button>
-          <button type="button" data-act="down" title="Move down">↓</button>
-          <button type="button" data-act="del" title="Remove">×</button>
+          <button type="button" class="btn ghost stack-act" data-act="up" title="Move up">↑</button>
+          <button type="button" class="btn ghost stack-act" data-act="down" title="Move down">↓</button>
+          <button type="button" class="btn ghost stack-act stack-act--danger" data-act="del" title="Remove effect">Remove</button>
         </span>
       </div>
     `;
     const check = li.querySelector('input');
+    const enableLabel = li.querySelector('.stack-enable span');
     check.addEventListener('click', (e) => e.stopPropagation());
     check.addEventListener('change', () => {
       fx.enabled = check.checked;
+      if (enableLabel) enableLabel.textContent = fx.enabled ? 'On' : 'Off';
+      li.classList.toggle('is-off', !fx.enabled);
       scheduleRender();
     });
     li.addEventListener('click', () => {
@@ -1049,6 +1070,7 @@ function refreshStackList() {
       refreshStackList();
       renderEffectParams();
       scheduleRender();
+      setStatus('ready', `Removed ${fx.constructor.label}.`);
     });
 
     // Mount live controls under the selected effect so options are obvious.
@@ -1057,12 +1079,30 @@ function refreshStackList() {
       host.className = 'stack-item-params';
       host.addEventListener('click', (e) => e.stopPropagation());
       li.appendChild(host);
-      // Defer fill until after li is in the DOM list build; filled by renderEffectParams.
       host.dataset.paramsHost = '1';
     }
 
     els.effectStackList.appendChild(li);
   });
+}
+
+function clearEffectStack() {
+  state.stack.effects = [];
+  state.selectedEffectId = null;
+  state.maskMode = null;
+  els.canvas.classList.remove('masking');
+  refreshStackList();
+  renderEffectParams();
+  scheduleRender();
+  setStatus('ready', 'Cleared all grade effects.');
+}
+
+function openPanelBlock(name) {
+  const block = els.panel?.querySelector(`.panel-block[data-block="${name}"]`);
+  if (!block) return;
+  block.dataset.open = 'true';
+  const head = block.querySelector('.panel-block__head');
+  if (head) head.setAttribute('aria-expanded', 'true');
 }
 
 function paramControl(fx, key, meta) {
@@ -1363,10 +1403,15 @@ function bindEffectStack() {
     const type = els.effectAddSelect.value;
     const fx = state.stack.add(type);
     state.selectedEffectId = fx.id;
+    openPanelBlock('grade');
     refreshStackList();
     renderEffectParams();
     scheduleRender();
-    setStatus('ready', `Added ${fx.constructor.label} — tweak its settings in the stack.`);
+    setStatus('ready', `Added ${fx.constructor.label}. Turn Off or Remove anytime.`);
+  });
+
+  els.clearStackBtn?.addEventListener('click', () => {
+    clearEffectStack();
   });
 
   els.maskSize.addEventListener('input', () => {
@@ -1520,6 +1565,7 @@ function bindControls() {
       subjectMotion: 'none',
       subjectMotionAmount: 0.55,
     });
+    clearEffectStack();
     invalidateSubjectBitmap();
     els.textInput.value = DEFAULTS.text;
     els.fontSelect.value = DEFAULTS.font;
@@ -1547,9 +1593,11 @@ function bindControls() {
     }
     syncEffectChips();
     syncPaperControls();
+    syncSubjectMotionControls();
     ensureAnimLoop();
     syncLabels();
     render();
+    setStatus('ready', 'Style reset.');
   });
 
   const pngBtns = [els.downloadBtn, els.downloadBtnDock].filter(Boolean);

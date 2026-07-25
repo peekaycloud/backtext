@@ -716,7 +716,13 @@ input[type="color"]::-moz-color-swatch { border: none; border-radius: 4px; }
   user-select: none;
 }
 
-.toggle input { position: absolute; opacity: 0; pointer-events: none; }
+.toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
 
 .toggle-track {
   width: 32px;
@@ -874,6 +880,29 @@ input[type="color"]::-moz-color-swatch { border: none; border-radius: 4px; }
   background: rgba(245, 197, 24, 0.06);
 }
 
+.stack-item.is-off .stack-item-name {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+
+.stack-enable {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+}
+
+.stack-enable input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 .stack-item-name {
   font-size: 12px;
   font-weight: 600;
@@ -887,6 +916,20 @@ input[type="color"]::-moz-color-swatch { border: none; border-radius: 4px; }
 .stack-item-actions {
   display: flex;
   gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.stack-act {
+  height: 28px !important;
+  min-width: 28px;
+  padding: 0 8px !important;
+  font-size: 11px !important;
+}
+
+.stack-act--danger {
+  color: var(--danger);
+  border-color: rgba(232, 93, 93, 0.45);
 }
 
 .stack-item-actions button,

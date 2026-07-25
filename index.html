@@ -12,9 +12,9 @@
     href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Bebas+Neue&family=IBM+Plex+Sans:wght@400;500;600;700&family=Lobster&family=Montserrat:wght@700;800&family=Oswald:wght@500;600&family=Playfair+Display:ital,wght@0,700;0,800;1,700&display=swap"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="styles.css?v=22" />
+  <link rel="stylesheet" href="styles.css?v=23" />
 </head>
-<body data-build="22">
+<body data-build="23">
   <header class="topbar">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">BT</span>
@@ -167,6 +167,7 @@
 
             <div class="panel-section">
               <span class="field-label">Finish</span>
+              <p class="hint tight">Click again to return to Clean.</p>
               <div class="chip-grid chip-grid--tall" id="finishChips" role="radiogroup" aria-label="Text finish"></div>
             </div>
 
@@ -233,6 +234,7 @@
 
             <div class="panel-section">
               <span class="field-label">Cut treatment</span>
+              <p class="hint tight">Click again to return to Normal subject.</p>
               <div class="chip-grid" id="subjectEffectChips" role="radiogroup" aria-label="Subject effect"></div>
             </div>
 
@@ -273,6 +275,7 @@
 
             <div class="panel-section">
               <span class="field-label">Motion</span>
+              <p class="hint tight">Click again to return to Still.</p>
               <div class="chip-grid" id="subjectMotionChips" role="radiogroup" aria-label="Subject motion"></div>
             </div>
 
@@ -298,7 +301,7 @@
                 <select id="effectAddSelect" aria-label="Effect to add"></select>
                 <button class="btn ghost" id="effectAddBtn" type="button">Add</button>
               </div>
-              <p class="hint tight">Select a layer to edit opacity, blend, and parameters.</p>
+              <p class="hint tight">Select a layer to edit it. Use <strong>Off</strong> to preview without it, or <strong>Remove</strong> to delete it.</p>
               <ul class="stack-list" id="effectStackList"></ul>
               <div class="stack-params" id="effectParams" hidden></div>
               <div class="stack-mask" id="maskTools" hidden>
@@ -321,6 +324,7 @@
                 <p class="hint tight">White shows the effect. Black hides it. Draw on the canvas.</p>
               </div>
               <div class="stack-actions">
+                <button class="btn ghost block" id="clearStackBtn" type="button" hidden>Clear all effects</button>
                 <button class="btn ghost block" id="exportLutBtn" type="button">Export .cube LUT</button>
               </div>
             </div>
@@ -355,6 +359,6 @@
 
   <input type="file" id="fileInput" class="sr-only" accept="image/*" />
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-  <script type="module" src="app.js?v=22"></script>
+  <script type="module" src="app.js?v=23"></script>
 </body>
 </html>
