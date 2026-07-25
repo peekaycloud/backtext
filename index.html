@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <title>Backtext — text behind your subject</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Bebas+Neue&family=IBM+Plex+Sans:wght@400;500;600;700&family=Lobster&family=Montserrat:wght@700;800&family=Oswald:wght@500;600&family=Playfair+Display:ital,wght@0,700;0,800;1,700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="styles.css?v=22" />
+</head>
+<body data-build="22">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">BT</span>
+      <span class="brand-name">Backtext</span>
+    </div>
+    <div class="status" id="status" data-state="idle">
+      <span class="status-dot"></span>
+      <span class="status-text" id="statusText">Load a photo to begin</span>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn ghost" id="sampleBtn" type="button">
+        <i data-lucide="image"></i><span>Sample</span>
+      </button>
+      <label class="btn ghost" for="fileInput" id="uploadBtn">
+        <i data-lucide="upload"></i><span>Upload</span>
+      </label>
+      <div class="export-split" role="group" aria-label="Download">
+        <button class="btn primary" id="downloadBtn" type="button" disabled>
+          <i data-lucide="image-down"></i><span>PNG</span>
+        </button>
+        <button class="btn primary export-split__video" id="downloadVideoBtn" type="button" disabled>
+          <i data-lucide="film"></i><span>MP4</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="stage" id="stage">
+      <div class="dropzone" id="dropzone">
+        <div class="dropzone-inner">
+          <span class="dropzone-kicker">On-device cutout</span>
+          <h1>Put words<br />behind your subject</h1>
+          <p>Drop a photo, isolate the person locally, then park type behind them — ribbon, neon, paper, or a short looping clip.</p>
+          <div class="dropzone-actions">
+            <label class="btn primary" for="fileInput" id="dropUploadBtn">
+              <i data-lucide="upload"></i><span>Choose a photo</span>
+            </label>
+            <button class="btn ghost" id="dropSampleBtn" type="button">
+              <i data-lucide="sparkles"></i><span>Try the sample</span>
+            </button>
+          </div>
+          <p class="dropzone-note">Nothing leaves this browser.</p>
+        </div>
+      </div>
+      <canvas id="canvas" hidden></canvas>
+      <div class="processing" id="processing" hidden>
+        <div class="processing-card">
+          <span class="spinner"></span>
+          <div class="processing-text">
+            <strong id="processingTitle">Cutting out the subject…</strong>
+            <span id="processingDetail">First run downloads a small model (~40 MB), then it is cached.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel" id="panel">
+      <div class="panel-scroll">
+        <!-- 1. Words -->
+        <section class="panel-block" data-block="words" data-open="true">
+          <button type="button" class="panel-block__head" aria-expanded="true">
+            <span class="panel-block__index">01</span>
+            <span class="panel-block__title">Words</span>
+            <span class="panel-block__chev" aria-hidden="true"></span>
+          </button>
+          <div class="panel-block__body">
+            <div class="panel-section">
+              <label class="field-label" for="textInput">What to say</label>
+              <textarea id="textInput" rows="2" spellcheck="false">BEHIND</textarea>
+            </div>
+
+            <div class="panel-section">
+              <label class="field-label" for="fontSelect">Font</label>
+              <div class="select-wrap">
+                <select id="fontSelect">
+                  <option value="Anton" selected>Anton</option>
+                  <option value="Archivo Black">Archivo Black</option>
+                  <option value="Bebas Neue">Bebas Neue</option>
+                  <option value="Montserrat">Montserrat</option>
+                  <option value="Oswald">Oswald</option>
+                  <option value="Playfair Display">Playfair Display</option>
+                  <option value="Lobster">Lobster</option>
+                  <option value="IBM Plex Sans">IBM Plex Sans</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="panel-section grid-2">
+              <div>
+                <label class="field-label" for="sizeRange">Size <span class="field-value" id="sizeValue"></span></label>
+                <input type="range" id="sizeRange" min="8" max="400" step="1" value="120" />
+              </div>
+              <div>
+                <label class="field-label" for="rotationRange">Tilt <span class="field-value" id="rotationValue"></span></label>
+                <input type="range" id="rotationRange" min="-45" max="45" step="1" value="0" />
+              </div>
+              <div>
+                <label class="field-label" for="posXRange">Horizontal <span class="field-value" id="posXValue"></span></label>
+                <input type="range" id="posXRange" min="0" max="100" step="1" value="50" />
+              </div>
+              <div>
+                <label class="field-label" for="posYRange">Vertical <span class="field-value" id="posYValue"></span></label>
+                <input type="range" id="posYRange" min="0" max="100" step="1" value="42" />
+              </div>
+              <div>
+                <label class="field-label" for="spacingRange">Letter spacing <span class="field-value" id="spacingValue"></span></label>
+                <input type="range" id="spacingRange" min="-4" max="60" step="1" value="2" />
+              </div>
+              <div>
+                <label class="field-label" for="lineHeightRange">Line height <span class="field-value" id="lineHeightValue"></span></label>
+                <input type="range" id="lineHeightRange" min="70" max="200" step="1" value="105" />
+              </div>
+            </div>
+
+            <div class="panel-section">
+              <label class="field-label" for="opacityRange">Opacity <span class="field-value" id="opacityValue"></span></label>
+              <input type="range" id="opacityRange" min="10" max="100" step="1" value="100" />
+            </div>
+
+            <div class="panel-section">
+              <label class="field-label" for="colorInput">Color / split</label>
+              <div class="color-control">
+                <input type="color" id="colorInput" value="#ffffff" title="Primary / behind" />
+                <input type="color" id="color2Input" value="#4dd7ff" title="Secondary / on subject" />
+                <div class="swatches" id="swatches">
+                  <button type="button" class="swatch" data-color="#ffffff" style="--sw:#ffffff" aria-label="White"></button>
+                  <button type="button" class="swatch" data-color="#111111" style="--sw:#111111" aria-label="Black"></button>
+                  <button type="button" class="swatch" data-color="#f5c518" style="--sw:#f5c518" aria-label="Flash yellow"></button>
+                  <button type="button" class="swatch" data-color="#ff4d6d" style="--sw:#ff4d6d" aria-label="Pink"></button>
+                  <button type="button" class="swatch" data-color="#5ec8d8" style="--sw:#5ec8d8" aria-label="Cyan"></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. Text look -->
+        <section class="panel-block" data-block="look" data-open="true">
+          <button type="button" class="panel-block__head" aria-expanded="true">
+            <span class="panel-block__index">02</span>
+            <span class="panel-block__title">Text look</span>
+            <span class="panel-block__chev" aria-hidden="true"></span>
+          </button>
+          <div class="panel-block__body">
+            <div class="panel-section">
+              <span class="field-label">Layout</span>
+              <div class="chip-grid" id="layoutChips" role="radiogroup" aria-label="Text layout"></div>
+            </div>
+
+            <div class="panel-section">
+              <span class="field-label">Finish</span>
+              <div class="chip-grid chip-grid--tall" id="finishChips" role="radiogroup" aria-label="Text finish"></div>
+            </div>
+
+            <div class="panel-section grid-2">
+              <div>
+                <label class="field-label" for="blendSelect">Blend</label>
+                <div class="select-wrap">
+                  <select id="blendSelect"></select>
+                </div>
+              </div>
+              <div>
+                <label class="field-label" for="patternSelect">Pattern</label>
+                <div class="select-wrap">
+                  <select id="patternSelect"></select>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel-section toggles">
+              <label class="toggle">
+                <input type="checkbox" id="shadowToggle" autocomplete="off" />
+                <span class="toggle-track"></span>
+                <span class="toggle-label">Soft shadow</span>
+              </label>
+              <label class="toggle">
+                <input type="checkbox" id="strokeToggle" autocomplete="off" />
+                <span class="toggle-track"></span>
+                <span class="toggle-label">Outline</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. Subject -->
+        <section class="panel-block" data-block="subject" data-open="true">
+          <button type="button" class="panel-block__head" aria-expanded="true">
+            <span class="panel-block__index">03</span>
+            <span class="panel-block__title">Subject</span>
+            <span class="panel-block__chev" aria-hidden="true"></span>
+          </button>
+          <div class="panel-block__body">
+            <div class="panel-section toggles">
+              <label class="toggle">
+                <input type="checkbox" id="behindToggle" checked disabled autocomplete="off" />
+                <span class="toggle-track"></span>
+                <span class="toggle-label">Text behind subject</span>
+              </label>
+              <label class="toggle">
+                <input type="checkbox" id="stickerToggle" autocomplete="off" />
+                <span class="toggle-track"></span>
+                <span class="toggle-label">Sticker pop-out</span>
+              </label>
+              <label class="toggle">
+                <input type="checkbox" id="breakoutToggle" autocomplete="off" />
+                <span class="toggle-track"></span>
+                <span class="toggle-label">Frame breakout</span>
+              </label>
+              <label class="toggle">
+                <input type="checkbox" id="parallaxToggle" autocomplete="off" />
+                <span class="toggle-track"></span>
+                <span class="toggle-label">Parallax preview</span>
+              </label>
+            </div>
+
+            <div class="panel-section">
+              <span class="field-label">Cut treatment</span>
+              <div class="chip-grid" id="subjectEffectChips" role="radiogroup" aria-label="Subject effect"></div>
+            </div>
+
+            <div class="panel-section nested" id="paperControls" hidden>
+              <span class="field-label">Paper cut</span>
+              <p class="hint tight">Depth and torn rim on the person — not the text slab.</p>
+              <div class="grid-2">
+                <div>
+                  <label class="field-label" for="paperThickness">Thickness <span class="field-value" id="paperThicknessValue">55%</span></label>
+                  <input type="range" id="paperThickness" min="0" max="100" value="55" />
+                </div>
+                <div>
+                  <label class="field-label" for="paperBevel">Bevel <span class="field-value" id="paperBevelValue">50%</span></label>
+                  <input type="range" id="paperBevel" min="0" max="100" value="50" />
+                </div>
+                <div>
+                  <label class="field-label" for="paperTexture">Texture <span class="field-value" id="paperTextureValue">45%</span></label>
+                  <input type="range" id="paperTexture" min="0" max="100" value="45" />
+                </div>
+                <div>
+                  <label class="field-label" for="paperTorn">Torn edges <span class="field-value" id="paperTornValue">40%</span></label>
+                  <input type="range" id="paperTorn" min="0" max="100" value="40" />
+                </div>
+                <div>
+                  <label class="field-label" for="paperCurl">Curl / folds <span class="field-value" id="paperCurlValue">45%</span></label>
+                  <input type="range" id="paperCurl" min="0" max="100" value="45" />
+                </div>
+                <div>
+                  <label class="field-label" for="paperShadowSoft">Shadow soft <span class="field-value" id="paperShadowSoftValue">55%</span></label>
+                  <input type="range" id="paperShadowSoft" min="0" max="100" value="55" />
+                </div>
+              </div>
+              <div class="color-row">
+                <label class="field-label" for="paperTint">Paper tint</label>
+                <input type="color" id="paperTint" value="#f3ead7" />
+              </div>
+            </div>
+
+            <div class="panel-section">
+              <span class="field-label">Motion</span>
+              <div class="chip-grid" id="subjectMotionChips" role="radiogroup" aria-label="Subject motion"></div>
+            </div>
+
+            <div class="panel-section nested" id="subjectMotionControls" hidden>
+              <label class="field-label" for="subjectMotionAmount">Amount <span class="field-value" id="subjectMotionAmountValue">55%</span></label>
+              <input type="range" id="subjectMotionAmount" min="5" max="100" value="55" />
+              <p class="hint tight">Loops in the preview and in MP4 export.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. Grade -->
+        <section class="panel-block" data-block="grade" data-open="false">
+          <button type="button" class="panel-block__head" aria-expanded="false">
+            <span class="panel-block__index">04</span>
+            <span class="panel-block__title">Grade</span>
+            <span class="panel-block__chev" aria-hidden="true"></span>
+          </button>
+          <div class="panel-block__body">
+            <div class="panel-section">
+              <span class="field-label">Effect stack</span>
+              <div class="stack-add">
+                <select id="effectAddSelect" aria-label="Effect to add"></select>
+                <button class="btn ghost" id="effectAddBtn" type="button">Add</button>
+              </div>
+              <p class="hint tight">Select a layer to edit opacity, blend, and parameters.</p>
+              <ul class="stack-list" id="effectStackList"></ul>
+              <div class="stack-params" id="effectParams" hidden></div>
+              <div class="stack-mask" id="maskTools" hidden>
+                <span class="field-label">Layer mask brush</span>
+                <div class="grid-2">
+                  <div>
+                    <label class="field-label" for="maskSize">Size <span class="field-value" id="maskSizeValue">40</span></label>
+                    <input type="range" id="maskSize" min="8" max="160" value="40" />
+                  </div>
+                  <div>
+                    <label class="field-label" for="maskHard">Hardness <span class="field-value" id="maskHardValue">60%</span></label>
+                    <input type="range" id="maskHard" min="0" max="100" value="60" />
+                  </div>
+                </div>
+                <div class="stack-mask-actions">
+                  <button class="btn ghost" id="maskPaintBtn" type="button">Paint</button>
+                  <button class="btn ghost" id="maskEraseBtn" type="button">Erase</button>
+                  <button class="btn ghost" id="maskClearBtn" type="button">Reset mask</button>
+                </div>
+                <p class="hint tight">White shows the effect. Black hides it. Draw on the canvas.</p>
+              </div>
+              <div class="stack-actions">
+                <button class="btn ghost block" id="exportLutBtn" type="button">Export .cube LUT</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="export-dock">
+        <div class="export-dock__row">
+          <span class="export-dock__label">Export</span>
+          <div class="seg" id="videoDurationSeg" role="radiogroup" aria-label="Video length">
+            <button type="button" class="seg__btn" data-seconds="2" aria-checked="false">2s</button>
+            <button type="button" class="seg__btn" data-seconds="3" aria-checked="true">3s</button>
+            <button type="button" class="seg__btn" data-seconds="5" aria-checked="false">5s</button>
+          </div>
+        </div>
+        <div class="export-dock__actions">
+          <button class="btn primary" id="downloadBtnDock" type="button" disabled>
+            <i data-lucide="image-down"></i><span>PNG</span>
+          </button>
+          <button class="btn primary" id="downloadVideoBtnDock" type="button" disabled>
+            <i data-lucide="film"></i><span>MP4</span>
+          </button>
+        </div>
+        <p class="hint tight" id="videoFormatHint">MP4 when the browser supports it; otherwise WebM.</p>
+        <button class="btn ghost block" id="resetBtn" type="button">
+          <i data-lucide="rotate-ccw"></i><span>Reset style</span>
+        </button>
+      </div>
+    </aside>
+  </main>
+
+  <input type="file" id="fileInput" class="sr-only" accept="image/*" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script type="module" src="app.js?v=22"></script>
+</body>
+</html>
