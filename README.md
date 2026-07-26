@@ -91,6 +91,8 @@ Each layer has opacity, blend, params, and an optional paint mask.
 
 Segmentation and rendering run in your browser. Photos are not uploaded to a Backtext server. The first cutout may download a small ML model (~40MB), then caches it.
 
+A small anonymous daily visit count (once per browser tab session) is stored via [CounterAPI](https://counterapi.dev/) so the top bar can show “today” traffic. No photo data is included.
+
 ---
 
 ## Browser notes
