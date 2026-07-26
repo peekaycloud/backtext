@@ -55,6 +55,8 @@ const els = {
   processingDetail: document.getElementById('processingDetail'),
   status: document.getElementById('status'),
   statusText: document.getElementById('statusText'),
+  visitorChip: document.getElementById('visitorChip'),
+  visitorCount: document.getElementById('visitorCount'),
   fileInput: document.getElementById('fileInput'),
   uploadBtn: document.getElementById('uploadBtn'),
   dropUploadBtn: document.getElementById('dropUploadBtn'),
@@ -1853,6 +1855,57 @@ function bindFileInputs() {
   document.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
 }
 
+/* ---------------- daily visitors ---------------- */
+
+const VISITOR_NS = 'peekaycloud-backtext';
+
+/** UTC calendar day key — resets the public counter at midnight UTC. */
+function visitorDayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function formatVisitorCount(n) {
+  const num = Number(n);
+  if (!Number.isFinite(num) || num < 0) return '—';
+  return new Intl.NumberFormat('en', { notation: num >= 10000 ? 'compact' : 'standard' }).format(num);
+}
+
+/**
+ * Show today's visit count. Increments once per browser tab session per day
+ * (refreshes in the same tab still count once).
+ */
+async function trackDailyVisitors() {
+  if (!els.visitorCount) return;
+  const day = visitorDayKey();
+  const sessionKey = `backtext-visit-${day}`;
+  let counted = false;
+  try {
+    counted = sessionStorage.getItem(sessionKey) === '1';
+  } catch (_) { /* private mode */ }
+
+  const url = counted
+    ? `https://api.counterapi.dev/v1/${VISITOR_NS}/visitors-${day}/`
+    : `https://api.counterapi.dev/v1/${VISITOR_NS}/visitors-${day}/up`;
+
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`counter ${res.status}`);
+    const data = await res.json();
+    const count = data?.count ?? data?.value;
+    els.visitorCount.textContent = formatVisitorCount(count);
+    els.visitorChip?.classList.remove('is-error');
+    if (!counted) {
+      try { sessionStorage.setItem(sessionKey, '1'); } catch (_) { /* ignore */ }
+    }
+  } catch (err) {
+    console.warn('Daily visitor counter unavailable:', err);
+    els.visitorCount.textContent = '—';
+    els.visitorChip?.classList.add('is-error');
+  }
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
 /* ---------------- boot ---------------- */
 
 /** Keep the document pinned — focusing bottom panel controls must not pan the page. */
@@ -1879,6 +1932,7 @@ function boot() {
     bindFileInputs();
     syncLabels();
     showProcessing(false);
+    trackDailyVisitors();
     window.backtextLoadSample = loadSample;
     window.addEventListener('resize', () => {
       lockDocumentScroll();

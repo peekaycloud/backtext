@@ -104,6 +104,76 @@ body {
   text-transform: uppercase;
 }
 
+.topbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text);
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-btn:hover {
+  background: #2c2a25;
+  border-color: #5a564a;
+  color: var(--accent);
+}
+
+.visitor-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.visitor-chip svg {
+  width: 14px;
+  height: 14px;
+  color: var(--text-faint);
+  flex: 0 0 auto;
+}
+
+.visitor-chip__count {
+  color: var(--text);
+  font-weight: 600;
+  min-width: 1ch;
+}
+
+.visitor-chip__label {
+  color: var(--text-faint);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.visitor-chip.is-error .visitor-chip__count {
+  color: var(--text-faint);
+}
+
 .status {
   display: flex;
   align-items: center;
@@ -1042,6 +1112,7 @@ input[type="color"]::-moz-color-swatch { border: none; border-radius: 4px; }
   }
   .chip-grid { max-height: none; }
   .status { display: none; }
+  .visitor-chip__label { display: none; }
   .topbar-actions .btn span { display: none; }
   .topbar-actions .btn { padding: 0 10px; }
   .export-dock__actions .btn span { display: inline; }

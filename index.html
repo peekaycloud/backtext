@@ -12,13 +12,30 @@
     href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Bebas+Neue&family=IBM+Plex+Sans:wght@400;500;600;700&family=Lobster&family=Montserrat:wght@700;800&family=Oswald:wght@500;600&family=Playfair+Display:ital,wght@0,700;0,800;1,700&display=swap"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="styles.css?v=27" />
+  <link rel="stylesheet" href="styles.css?v=28" />
 </head>
-<body data-build="25">
+<body data-build="28">
   <header class="topbar">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">BT</span>
       <span class="brand-name">Backtext</span>
+    </div>
+    <div class="topbar-meta">
+      <a
+        class="icon-btn"
+        href="https://github.com/peekaycloud/backtext"
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Source on GitHub"
+        aria-label="Source on GitHub"
+      >
+        <i data-lucide="github"></i>
+      </a>
+      <div class="visitor-chip" id="visitorChip" title="Unique visits today" aria-live="polite">
+        <i data-lucide="eye" aria-hidden="true"></i>
+        <span class="visitor-chip__count" id="visitorCount">—</span>
+        <span class="visitor-chip__label">today</span>
+      </div>
     </div>
     <div class="status" id="status" data-state="idle">
       <span class="status-dot"></span>
@@ -364,6 +381,6 @@
 
   <input type="file" id="fileInput" class="sr-only" accept="image/*" />
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-  <script type="module" src="app.js?v=27"></script>
+  <script type="module" src="app.js?v=28"></script>
 </body>
 </html>
