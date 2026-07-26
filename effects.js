@@ -49,6 +49,7 @@ export const FINISHES = [
   { id: 'blurReveal', label: 'Blur reveal' },
   { id: 'slideReveal', label: 'Slide reveal' },
   { id: 'scalePop', label: 'Scale pop' },
+  { id: 'signature', label: 'Signature' },
   { id: 'paper', label: 'Paper cut' },
   { id: 'paperFolded', label: 'Folded paper' },
   { id: 'paperRolled', label: 'Rolled paper' },
@@ -121,6 +122,7 @@ const COMPONENTRY_ANIM_FINISHES = new Set([
   'blurReveal',
   'slideReveal',
   'scalePop',
+  'signature',
 ]);
 
 export function isComponentryAnimFinish(finish) {
@@ -2148,6 +2150,8 @@ function applyComponentryAnim(ctx, state, paint, time, finish) {
       return drawSlideReveal(ctx, state, paint, time);
     case 'scalePop':
       return drawScalePop(ctx, state, paint, time);
+    case 'signature':
+      return drawSignature(ctx, state, time);
     default:
       drawSingle(ctx, state, paint);
   }
@@ -2396,3 +2400,234 @@ function drawScalePop(ctx, state, paint, time) {
     }
   });
 }
+
+/* ---------- Signature (Componentry / Opentype path draw) ---------- */
+
+const SIGNATURE_FONT_URLS = [
+  'https://componentry.dev/LastoriaBoldRegular.otf',
+  'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/greatvibes/GreatVibes-Regular.ttf',
+];
+
+let signatureFontPromise = null;
+let signatureRedraw = null;
+const signatureCache = { key: '', glyphs: null, failed: false, loadingKey: '' };
+
+/** Register a redraw callback once the signature font/paths are ready. */
+export function setSignatureRedraw(fn) {
+  signatureRedraw = fn;
+}
+
+function loadSignatureFont() {
+  if (!signatureFontPromise) {
+    signatureFontPromise = (async () => {
+      const mod = await import('https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/+esm');
+      const ot = mod.default || mod;
+      let lastErr;
+      for (const url of SIGNATURE_FONT_URLS) {
+        try {
+          return await ot.load(url);
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+      throw lastErr || new Error('Signature font failed to load');
+    })();
+  }
+  return signatureFontPromise;
+}
+
+function cubicLen(x0, y0, x1, y1, x2, y2, x3, y3) {
+  let len = 0;
+  let px = x0;
+  let py = y0;
+  for (let i = 1; i <= 8; i++) {
+    const t = i / 8;
+    const u = 1 - t;
+    const x = u * u * u * x0 + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t * x3;
+    const y = u * u * u * y0 + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y3;
+    len += Math.hypot(x - px, y - py);
+    px = x;
+    py = y;
+  }
+  return len;
+}
+
+function quadLen(x0, y0, x1, y1, x2, y2) {
+  let len = 0;
+  let px = x0;
+  let py = y0;
+  for (let i = 1; i <= 6; i++) {
+    const t = i / 6;
+    const u = 1 - t;
+    const x = u * u * x0 + 2 * u * t * x1 + t * t * x2;
+    const y = u * u * y0 + 2 * u * t * y1 + t * t * y2;
+    len += Math.hypot(x - px, y - py);
+    px = x;
+    py = y;
+  }
+  return len;
+}
+
+function measureOtPath(path) {
+  let len = 0;
+  let x = 0;
+  let y = 0;
+  let startX = 0;
+  let startY = 0;
+  for (const cmd of path.commands) {
+    if (cmd.type === 'M') {
+      x = cmd.x;
+      y = cmd.y;
+      startX = x;
+      startY = y;
+    } else if (cmd.type === 'L') {
+      len += Math.hypot(cmd.x - x, cmd.y - y);
+      x = cmd.x;
+      y = cmd.y;
+    } else if (cmd.type === 'C') {
+      len += cubicLen(x, y, cmd.x1, cmd.y1, cmd.x2, cmd.y2, cmd.x, cmd.y);
+      x = cmd.x;
+      y = cmd.y;
+    } else if (cmd.type === 'Q') {
+      len += quadLen(x, y, cmd.x1, cmd.y1, cmd.x, cmd.y);
+      x = cmd.x;
+      y = cmd.y;
+    } else if (cmd.type === 'Z') {
+      len += Math.hypot(startX - x, startY - y);
+      x = startX;
+      y = startY;
+    }
+  }
+  return Math.max(1, len);
+}
+
+function otPathToPath2D(path) {
+  const p = new Path2D();
+  for (const cmd of path.commands) {
+    if (cmd.type === 'M') p.moveTo(cmd.x, cmd.y);
+    else if (cmd.type === 'L') p.lineTo(cmd.x, cmd.y);
+    else if (cmd.type === 'C') p.bezierCurveTo(cmd.x1, cmd.y1, cmd.x2, cmd.y2, cmd.x, cmd.y);
+    else if (cmd.type === 'Q') p.quadraticCurveTo(cmd.x1, cmd.y1, cmd.x, cmd.y);
+    else if (cmd.type === 'Z') p.closePath();
+  }
+  return p;
+}
+
+function buildSignatureGlyphs(font, text, fontSize) {
+  const baseline = fontSize * 1.15;
+  const pad = fontSize * 0.1;
+  let x = pad;
+  const glyphs = [];
+  for (const char of text) {
+    if (char === '\n') {
+      // Signature is single-line for authenticity; treat newline as space advance
+      x += fontSize * 0.35;
+      continue;
+    }
+    const glyph = font.charToGlyph(char);
+    const path = glyph.getPath(x, baseline, fontSize);
+    const advance = (glyph.advanceWidth ?? font.unitsPerEm) * (fontSize / font.unitsPerEm);
+    if (char !== ' ' && path.commands.length) {
+      glyphs.push({
+        path2d: otPathToPath2D(path),
+        length: measureOtPath(path),
+        space: false,
+      });
+    }
+    x += advance;
+  }
+  const width = x + pad;
+  const height = fontSize * 2.4;
+  return { glyphs, width, height, baseline };
+}
+
+function getSignatureGlyphs(state) {
+  const text = (state.text || 'Signature').replace(/\n+/g, ' ').trim() || 'Signature';
+  const size = Math.max(24, state.size);
+  const key = `${text}|${size}`;
+  if (signatureCache.key === key && signatureCache.glyphs) return signatureCache.glyphs;
+  if (signatureCache.failed && signatureCache.key === key) return null;
+
+  loadSignatureFont()
+    .then((font) => {
+      signatureCache.glyphs = buildSignatureGlyphs(font, text, size);
+      signatureCache.key = key;
+      signatureCache.failed = false;
+      signatureRedraw?.();
+    })
+    .catch((err) => {
+      console.warn('Signature font load failed:', err);
+      signatureCache.failed = true;
+      signatureCache.key = key;
+      signatureRedraw?.();
+    });
+
+  return signatureCache.key === key ? signatureCache.glyphs : null;
+}
+
+/**
+ * Hand-written signature draw-on (Componentry Signature → canvas).
+ * Strokes each glyph path with staggered pathLength, then fills.
+ */
+function drawSignature(ctx, state, time) {
+  const data = getSignatureGlyphs(state);
+  if (!data || !data.glyphs.length) {
+    // Fallback while loading / on failure: soft cursive using Lobster if available
+    const prevFont = state.font;
+    state.font = 'Lobster';
+    withTextOrigin(ctx, state, () => {
+      applyFont(ctx, state);
+      ctx.globalAlpha = state.opacity * 0.85;
+      ctx.fillStyle = state.color;
+      const line = (state.text || 'Signature').replace(/\n+/g, ' ');
+      ctx.fillText(line, 0, 0);
+    });
+    state.font = prevFont;
+    return;
+  }
+
+  const { glyphs, width, height } = data;
+  const duration = 1.45; // seconds per glyph stroke
+  const stagger = 0.18; // seconds between glyphs
+  const hold = 0.9;
+  const cycle = (glyphs.length * stagger + duration + hold) * 1000;
+  const t = (time % cycle) / 1000;
+
+  ctx.save();
+  ctx.translate(state.x * state.w, state.y * state.h);
+  ctx.rotate((state.rotation * Math.PI) / 180);
+  ctx.translate(-width / 2, -height * 0.55);
+  ctx.globalAlpha = state.opacity;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = state.color;
+  ctx.fillStyle = state.color;
+
+  glyphs.forEach((g, i) => {
+    const start = i * stagger;
+    const local = Math.min(1, Math.max(0, (t - start) / duration));
+    const drawn = easeOutCubic(local);
+    const len = g.length;
+    const strokeW = Math.max(1.5, state.size * 0.035);
+
+    // Ink stroke reveal
+    ctx.save();
+    ctx.lineWidth = strokeW;
+    ctx.setLineDash([len * drawn, len + 1]);
+    ctx.lineDashOffset = 0;
+    ctx.globalAlpha = state.opacity * (0.35 + 0.65 * Math.min(1, drawn * 1.4));
+    ctx.stroke(g.path2d);
+    ctx.restore();
+
+    // Fill once mostly drawn
+    if (drawn > 0.82) {
+      ctx.save();
+      ctx.globalAlpha = state.opacity * easeOutCubic((drawn - 0.82) / 0.18);
+      ctx.fill(g.path2d);
+      ctx.restore();
+    }
+  });
+
+  ctx.restore();
+}
+

@@ -20,7 +20,8 @@ import {
   drawTextEffects,
   drawStickerSubject,
   drawSubjectPaper,
-} from './effects.js?v=24';
+  setSignatureRedraw,
+} from './effects.js?v=25';
 
 import {
   EffectStack,
@@ -32,7 +33,7 @@ import {
   exportCubeLUT,
   downloadText,
   makeCanvas,
-} from './pipeline.js?v=24';
+} from './pipeline.js?v=25';
 
 const MAX_DIM = 1600; // processing cap; keeps segmentation and export snappy
 const SEGMENT_TIMEOUT_MS = 90_000;
@@ -1783,6 +1784,10 @@ function boot() {
     if (window.lucide) window.lucide.createIcons();
     document.fonts.ready.then(() => render());
     bindControls();
+    setSignatureRedraw(() => {
+      ensureAnimLoop();
+      render(performance.now());
+    });
     bindCanvasGestures();
     bindFileInputs();
     syncLabels();

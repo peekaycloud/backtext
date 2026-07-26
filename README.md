@@ -53,6 +53,7 @@ Or deploy the folder as a **static site** on Vercel:
 - **Componentry-inspired animations** (canvas ports of [harshjdhv/componentry](https://github.com/harshjdhv/componentry)):
   - Kinetic reveal, Letter cascade, Hyper scramble, Split flap
   - Text repel (cursor), Marquee, Blur reveal, Slide reveal, Scale pop
+  - **Signature** — hand-written path draw-on via Opentype.js (Lastoria / Great Vibes)
 - Blend modes + pattern fills
 
 > These are **not** the React/Framer Motion components from Componentry — the motion ideas are reimplemented for Backtext’s canvas pipeline so they work behind the subject cutout and in MP4 export.
