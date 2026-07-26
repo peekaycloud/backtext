@@ -2547,18 +2547,22 @@ function getSignatureGlyphs(state) {
   const key = `${text}|${size}`;
   if (signatureCache.key === key && signatureCache.glyphs) return signatureCache.glyphs;
   if (signatureCache.failed && signatureCache.key === key) return null;
+  if (signatureCache.loadingKey === key) return signatureCache.glyphs;
 
+  signatureCache.loadingKey = key;
   loadSignatureFont()
     .then((font) => {
       signatureCache.glyphs = buildSignatureGlyphs(font, text, size);
       signatureCache.key = key;
       signatureCache.failed = false;
+      signatureCache.loadingKey = '';
       signatureRedraw?.();
     })
     .catch((err) => {
       console.warn('Signature font load failed:', err);
       signatureCache.failed = true;
       signatureCache.key = key;
+      signatureCache.loadingKey = '';
       signatureRedraw?.();
     });
 
