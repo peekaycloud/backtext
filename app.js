@@ -1855,11 +1855,10 @@ function bindFileInputs() {
   document.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
 }
 
-/* ---------------- daily visitors ---------------- */
+/* ---------------- daily unique visitors (by IP) ---------------- */
 
 const VISITOR_NS = 'peekaycloud-backtext';
 
-/** UTC calendar day key — resets the public counter at midnight UTC. */
 function visitorDayKey() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -1871,32 +1870,35 @@ function formatVisitorCount(n) {
 }
 
 /**
- * Show today's visit count. Increments once per browser tab session per day
- * (refreshes in the same tab still count once).
+ * Unique IPs today via /api/visit (Vercel). Local static servers have no API,
+ * so we only display the public day total without incrementing.
  */
 async function trackDailyVisitors() {
   if (!els.visitorCount) return;
   const day = visitorDayKey();
-  const sessionKey = `backtext-visit-${day}`;
-  let counted = false;
-  try {
-    counted = sessionStorage.getItem(sessionKey) === '1';
-  } catch (_) { /* private mode */ }
-
-  const url = counted
-    ? `https://api.counterapi.dev/v1/${VISITOR_NS}/visitors-${day}/`
-    : `https://api.counterapi.dev/v1/${VISITOR_NS}/visitors-${day}/up`;
 
   try {
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await fetch('/api/visit', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      els.visitorCount.textContent = formatVisitorCount(data?.count);
+      els.visitorChip?.classList.remove('is-error');
+      if (window.lucide) window.lucide.createIcons();
+      return;
+    }
+  } catch (_) {
+    /* fall through — likely local python/http.server */
+  }
+
+  try {
+    const res = await fetch(
+      `https://api.counterapi.dev/v1/${VISITOR_NS}/unique-${day}/`,
+      { cache: 'no-store' },
+    );
     if (!res.ok) throw new Error(`counter ${res.status}`);
     const data = await res.json();
-    const count = data?.count ?? data?.value;
-    els.visitorCount.textContent = formatVisitorCount(count);
+    els.visitorCount.textContent = formatVisitorCount(data?.count);
     els.visitorChip?.classList.remove('is-error');
-    if (!counted) {
-      try { sessionStorage.setItem(sessionKey, '1'); } catch (_) { /* ignore */ }
-    }
   } catch (err) {
     console.warn('Daily visitor counter unavailable:', err);
     els.visitorCount.textContent = '—';

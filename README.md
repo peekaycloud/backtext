@@ -91,7 +91,7 @@ Each layer has opacity, blend, params, and an optional paint mask.
 
 Segmentation and rendering run in your browser. Photos are not uploaded to a Backtext server. The first cutout may download a small ML model (~40MB), then caches it.
 
-A small anonymous daily visit count (once per browser tab session) is stored via [CounterAPI](https://counterapi.dev/) so the top bar can show “today” traffic. No photo data is included.
+A small anonymous **daily unique-visitor** count (one count per IP per UTC day) is recorded by the `/api/visit` endpoint on Vercel; IPs are hashed before storage via [CounterAPI](https://counterapi.dev/). No photo data is included.
 
 ---
 
