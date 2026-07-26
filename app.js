@@ -66,6 +66,8 @@ const els = {
   downloadVideoBtnDock: document.getElementById('downloadVideoBtnDock'),
   videoDurationSeg: document.getElementById('videoDurationSeg'),
   videoFormatHint: document.getElementById('videoFormatHint'),
+  textLayerSeg: document.getElementById('textLayerSeg'),
+  textLayerHint: document.getElementById('textLayerHint'),
   resetBtn: document.getElementById('resetBtn'),
   panel: document.getElementById('panel'),
   textInput: document.getElementById('textInput'),
@@ -156,6 +158,7 @@ const DEFAULTS = {
   sticker: false,
   breakout: false,
   parallax: false,
+  textBehind: true,
   lightX: 0.3,
   lightY: 0.2,
   paper: { ...PAPER_DEFAULTS },
@@ -272,6 +275,8 @@ function render(time = performance.now()) {
   const textOff = { x: mx * 6, y: my * 4 };
   const subOff = { x: mx * 18, y: my * 14 };
 
+  const behind = !!(state.textBehind && state.fg);
+
   if (state.breakout) {
     const inset = Math.round(Math.min(w, h) * 0.06);
     cctx.fillStyle = '#0a0a0c';
@@ -281,23 +286,43 @@ function render(time = performance.now()) {
     cctx.rect(inset, inset, w - inset * 2, h - inset * 2);
     cctx.clip();
     cctx.drawImage(state.srcCanvas, bgOff.x, bgOff.y, w, h);
-    cctx.save();
-    cctx.translate(textOff.x, textOff.y);
-    const result = drawTextEffects(cctx, state, {
-      fg: state.fg,
-      mask: state.mask,
-      behind: els.behindToggle.checked && state.fg,
-      time,
-    });
     cctx.restore();
-    cctx.restore();
-    if (state.fg) {
+
+    const drawText = () => {
+      cctx.save();
+      cctx.translate(textOff.x, textOff.y);
+      return drawTextEffects(cctx, state, {
+        fg: state.fg,
+        mask: state.mask,
+        behind,
+        time,
+      });
+    };
+    const drawSubject = (splitFront) => {
+      if (!state.fg) return;
       cctx.save();
       cctx.translate(subOff.x, subOff.y);
       drawSubjectLayer(cctx, w, h, time);
-      if (result.splitFront) cctx.drawImage(result.splitFront, 0, 0);
+      if (splitFront) cctx.drawImage(splitFront, 0, 0);
       cctx.restore();
+    };
+
+    // Behind: text then subject. In front: subject then text.
+    let result;
+    if (behind) {
+      result = drawText();
+      drawSubject(result.splitFront);
+    } else {
+      drawSubject(null);
+      result = drawText();
+      if (result.splitFront) {
+        cctx.save();
+        cctx.translate(subOff.x, subOff.y);
+        cctx.drawImage(result.splitFront, 0, 0);
+        cctx.restore();
+      }
     }
+
     cctx.strokeStyle = 'rgba(255,255,255,0.35)';
     cctx.lineWidth = 2;
     cctx.strokeRect(inset + 0.5, inset + 0.5, w - inset * 2 - 1, h - inset * 2 - 1);
@@ -307,23 +332,41 @@ function render(time = performance.now()) {
     cctx.drawImage(state.srcCanvas, 0, 0, w, h);
     cctx.restore();
 
-    cctx.save();
-    cctx.translate(textOff.x, textOff.y);
-    const behind = els.behindToggle.checked && state.fg;
-    const result = drawTextEffects(cctx, state, {
-      fg: state.fg,
-      mask: state.mask,
-      behind,
-      time,
-    });
-    cctx.restore();
-
-    if (result.drawCutout && state.fg) {
+    const drawText = () => {
+      cctx.save();
+      cctx.translate(textOff.x, textOff.y);
+      return drawTextEffects(cctx, state, {
+        fg: state.fg,
+        mask: state.mask,
+        behind,
+        time,
+      });
+    };
+    const drawSubject = (splitFront) => {
+      if (!state.fg) return;
       cctx.save();
       cctx.translate(subOff.x, subOff.y);
       drawSubjectLayer(cctx, w, h, time);
-      if (result.splitFront) cctx.drawImage(result.splitFront, 0, 0);
+      if (splitFront) cctx.drawImage(splitFront, 0, 0);
       cctx.restore();
+    };
+
+    if (!state.fg) {
+      drawText();
+    } else if (behind) {
+      // Photo → text → cutout (paper / motion / sticker on top of words)
+      const result = drawText();
+      drawSubject(result.splitFront);
+    } else {
+      // Photo → cutout with subject effects → text in front
+      drawSubject(null);
+      const result = drawText();
+      if (result.splitFront) {
+        cctx.save();
+        cctx.translate(subOff.x, subOff.y);
+        cctx.drawImage(result.splitFront, 0, 0);
+        cctx.restore();
+      }
     }
   }
 
@@ -669,9 +712,28 @@ function rawImageToCanvas(raw) {
   return canvas;
 }
 
+function syncTextLayerUI() {
+  const behind = !!state.textBehind;
+  els.behindToggle.checked = behind;
+  els.behindToggle.disabled = !state.fg;
+  if (els.textLayerSeg) {
+    els.textLayerSeg.classList.toggle('is-disabled', !state.fg);
+    els.textLayerSeg.querySelectorAll('.seg__btn').forEach((btn) => {
+      const isBehind = btn.dataset.layer === 'behind';
+      btn.setAttribute('aria-checked', String(isBehind === behind));
+      btn.disabled = !state.fg;
+    });
+  }
+  if (els.textLayerHint) {
+    els.textLayerHint.textContent = behind
+      ? 'Text sits under the cut-out person.'
+      : 'Text sits over the subject.';
+  }
+}
+
 async function runSegmentation() {
   showProcessing(true);
-  els.behindToggle.disabled = true;
+  syncTextLayerUI();
   setStatus('busy', 'Cutting out the subject…');
 
   const onProgress = (phase, pct) => {
@@ -698,14 +760,20 @@ async function runSegmentation() {
       state.fg = await segmentWithRmbg(bmp, onProgress);
     }
     invalidateSubjectBitmap();
-    els.behindToggle.disabled = false;
+    syncTextLayerUI();
     state.mask = buildMaskGrid(state.fg, state.w, state.h, 8);
-    setStatus('ready', 'Subject isolated — text sits behind it.');
+    setStatus(
+      'ready',
+      state.textBehind
+        ? 'Subject isolated — text sits behind it.'
+        : 'Subject isolated — text sits in front.',
+    );
   } catch (err) {
     console.error('Segmentation failed:', err);
     state.fg = null;
     state.mask = null;
     invalidateSubjectBitmap();
+    syncTextLayerUI();
     setStatus('error', 'Cutout failed — text will sit on top. Check your connection.');
   } finally {
     showProcessing(false);
@@ -753,8 +821,8 @@ async function setSourceBlob(blob) {
   els.canvas.style.cursor = 'grab';
   els.dropzone.style.display = 'none';
   setExportEnabled(true);
-  els.behindToggle.disabled = true;
-  els.behindToggle.checked = true;
+  state.textBehind = true;
+  syncTextLayerUI();
 
   // Sensible defaults scaled to this image — large enough to peek around the subject.
   state.size = Math.round(w * 0.22);
@@ -1451,6 +1519,7 @@ function bindControls() {
   bindPanelAccordion();
   bindVideoDuration();
   syncVideoFormatHint();
+  syncTextLayerUI();
   bindEffectChips();
   bindEffectStack();
   bindPaperControls();
@@ -1533,7 +1602,24 @@ function bindControls() {
     });
   };
 
-  onToggle(els.behindToggle, () => render());
+  if (els.textLayerSeg) {
+    els.textLayerSeg.addEventListener('click', (e) => {
+      const btn = e.target.closest('.seg__btn');
+      if (!btn || btn.disabled || !state.fg) return;
+      state.textBehind = btn.dataset.layer === 'behind';
+      syncTextLayerUI();
+      setStatus(
+        'ready',
+        state.textBehind ? 'Text behind the subject.' : 'Text in front of the subject.',
+      );
+      render();
+    });
+  }
+  onToggle(els.behindToggle, () => {
+    state.textBehind = els.behindToggle.checked;
+    syncTextLayerUI();
+    render();
+  });
   onToggle(els.stickerToggle, () => {
     state.sticker = els.stickerToggle.checked;
     invalidateSubjectBitmap();
@@ -1583,6 +1669,7 @@ function bindControls() {
     els.stickerToggle.checked = DEFAULTS.sticker;
     els.breakoutToggle.checked = DEFAULTS.breakout;
     els.parallaxToggle.checked = DEFAULTS.parallax;
+    syncTextLayerUI();
     if (state.srcCanvas) {
       state.size = Math.round(state.w * 0.22);
       els.sizeRange.value = String(state.size);

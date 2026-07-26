@@ -12,7 +12,7 @@
     href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Bebas+Neue&family=IBM+Plex+Sans:wght@400;500;600;700&family=Lobster&family=Montserrat:wght@700;800&family=Oswald:wght@500;600&family=Playfair+Display:ital,wght@0,700;0,800;1,700&display=swap"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="styles.css?v=25" />
+  <link rel="stylesheet" href="styles.css?v=27" />
 </head>
 <body data-build="25">
   <header class="topbar">
@@ -209,12 +209,17 @@
             <span class="panel-block__chev" aria-hidden="true"></span>
           </button>
           <div class="panel-block__body">
+            <div class="panel-section">
+              <span class="field-label">Text layer</span>
+              <div class="seg seg--block" id="textLayerSeg" role="radiogroup" aria-label="Text layer order">
+                <button type="button" class="seg__btn" data-layer="behind" aria-checked="true">Behind subject</button>
+                <button type="button" class="seg__btn" data-layer="front" aria-checked="false">In front</button>
+              </div>
+              <p class="hint tight" id="textLayerHint">Text sits under the cut-out person.</p>
+              <input type="checkbox" id="behindToggle" class="sr-only" checked disabled autocomplete="off" tabindex="-1" aria-hidden="true" />
+            </div>
+
             <div class="panel-section toggles">
-              <label class="toggle">
-                <input type="checkbox" id="behindToggle" checked disabled autocomplete="off" />
-                <span class="toggle-track"></span>
-                <span class="toggle-label">Text behind subject</span>
-              </label>
               <label class="toggle">
                 <input type="checkbox" id="stickerToggle" autocomplete="off" />
                 <span class="toggle-track"></span>
@@ -359,6 +364,6 @@
 
   <input type="file" id="fileInput" class="sr-only" accept="image/*" />
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-  <script type="module" src="app.js?v=25"></script>
+  <script type="module" src="app.js?v=27"></script>
 </body>
 </html>

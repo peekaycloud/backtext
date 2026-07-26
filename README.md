@@ -30,7 +30,7 @@ Or deploy the folder as a **static site** on Vercel:
 3. Edit in the right panel, in order:
    - **01 Words** — copy, font, size, position, color  
    - **02 Text look** — layout + finish (neon, paper slab, melt, …)  
-   - **03 Subject** — behind/sticker, paper cut on the person, wiggle/bounce/…  
+   - **03 Subject** — text behind or in front, sticker, paper cut, wiggle/bounce/…  
    - **04 Grade** — optional color/FX stack  
 4. Export **PNG** or **MP4** (2s / 3s / 5s) from the sticky dock or the top bar.
 
@@ -59,7 +59,7 @@ Or deploy the folder as a **static site** on Vercel:
 > These are **not** the React/Framer Motion components from Componentry — the motion ideas are reimplemented for Backtext’s canvas pipeline so they work behind the subject cutout and in MP4 export.
 
 ### Subject
-- Text behind cutout (default once segmented)
+- Text behind or in front of the cutout (Behind subject / In front)
 - Sticker pop-out, frame breakout, parallax preview
 - Paper cut / folded / rolled / crumpled / stack on the **person**
 - Motion: wiggle, bounce, sway, float, pulse, jitter, nod
