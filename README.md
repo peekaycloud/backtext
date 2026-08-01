@@ -25,7 +25,7 @@ Or deploy the folder as a **static site** on Vercel:
 
 ## How to use
 
-1. **Upload** a photo (or hit **Sample**).
+1. **Open a photo** — upload, drag & drop, paste (`⌘`/`Ctrl`+`V`), or hit **Sample**.
 2. Wait for **Subject isolated** — the person is cut out locally.
 3. Edit in the right panel, in order:
    - **01 Words** — copy, font, size, position, color  

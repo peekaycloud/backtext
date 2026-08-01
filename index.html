@@ -12,9 +12,9 @@
     href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Bebas+Neue&family=IBM+Plex+Sans:wght@400;500;600;700&family=Lobster&family=Montserrat:wght@700;800&family=Oswald:wght@500;600&family=Playfair+Display:ital,wght@0,700;0,800;1,700&display=swap"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="styles.css?v=29" />
+  <link rel="stylesheet" href="styles.css?v=30" />
 </head>
-<body data-build="29">
+<body data-build="30">
   <header class="topbar">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">BT</span>
@@ -67,7 +67,7 @@
         <div class="dropzone-inner">
           <span class="dropzone-kicker">On-device cutout</span>
           <h1>Put words<br />behind your subject</h1>
-          <p>Drop a photo, isolate the person locally, then park type behind them — ribbon, neon, paper, or a short looping clip.</p>
+          <p>Drop a photo, paste from the clipboard (<kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>V</kbd>), or pick a file — then park type behind the subject.</p>
           <div class="dropzone-actions">
             <label class="btn primary" for="fileInput" id="dropUploadBtn">
               <i data-lucide="upload"></i><span>Choose a photo</span>
@@ -76,8 +76,11 @@
               <i data-lucide="sparkles"></i><span>Try the sample</span>
             </button>
           </div>
-          <p class="dropzone-note">Nothing leaves this browser.</p>
+          <p class="dropzone-note">Paste screenshots or drag from another tab. Nothing leaves this browser.</p>
         </div>
+      </div>
+      <div class="stage-drop-overlay" id="stageDropOverlay" hidden>
+        <span>Drop photo to open</span>
       </div>
       <canvas id="canvas" hidden></canvas>
       <div class="processing" id="processing" hidden>
@@ -383,6 +386,6 @@
 
   <input type="file" id="fileInput" class="sr-only" accept="image/*" />
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-  <script type="module" src="app.js?v=29"></script>
+  <script type="module" src="app.js?v=30"></script>
 </body>
 </html>

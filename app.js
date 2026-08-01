@@ -21,7 +21,7 @@ import {
   drawStickerSubject,
   drawSubjectPaper,
   setSignatureRedraw,
-} from './effects.js?v=25';
+} from './effects.js?v=30';
 
 import {
   EffectStack,
@@ -33,7 +33,7 @@ import {
   exportCubeLUT,
   downloadText,
   makeCanvas,
-} from './pipeline.js?v=25';
+} from './pipeline.js?v=30';
 
 const MAX_DIM = 1600; // processing cap; keeps segmentation and export snappy
 const SEGMENT_TIMEOUT_MS = 90_000;
@@ -50,6 +50,7 @@ const els = {
   canvas: document.getElementById('canvas'),
   stage: document.getElementById('stage'),
   dropzone: document.getElementById('dropzone'),
+  stageDropOverlay: document.getElementById('stageDropOverlay'),
   processing: document.getElementById('processing'),
   processingTitle: document.getElementById('processingTitle'),
   processingDetail: document.getElementById('processingDetail'),
@@ -844,13 +845,52 @@ async function setSourceBlob(blob) {
 }
 
 function handleFiles(files) {
-  const file = files && files[0];
-  if (!file) return;
-  if (!file.type.startsWith('image/')) {
-    setStatus('error', 'Please pick an image file.');
+  const file = pickImageFromList(files);
+  if (!file) {
+    if (files?.length) setStatus('error', 'Please drop or paste an image.');
     return;
   }
   setSourceBlob(file);
+}
+
+function pickImageFromList(files) {
+  if (!files?.length) return null;
+  return [...files].find((f) => f.type && f.type.startsWith('image/')) || null;
+}
+
+/** Prefer FileList, then DataTransferItemList (some browsers only fill items). */
+function pickImageFromDataTransfer(dt) {
+  if (!dt) return null;
+  const fromFiles = pickImageFromList(dt.files);
+  if (fromFiles) return fromFiles;
+  if (!dt.items) return null;
+  for (const item of dt.items) {
+    if (item.kind === 'file' && item.type.startsWith('image/')) {
+      return item.getAsFile();
+    }
+  }
+  return null;
+}
+
+function pickImageFromClipboardEvent(e) {
+  const items = e.clipboardData?.items;
+  if (!items) return null;
+  for (const item of items) {
+    if (item.type && item.type.startsWith('image/')) {
+      return item.getAsFile();
+    }
+  }
+  return null;
+}
+
+function setDragHighlight(on) {
+  els.dropzone?.classList.toggle('dragover', on);
+  if (els.stageDropOverlay) {
+    // Overlay only when a photo is already open (dropzone hidden).
+    const dropzoneHidden = !els.dropzone || els.dropzone.style.display === 'none';
+    els.stageDropOverlay.hidden = !(on && dropzoneHidden);
+  }
+  els.stage?.classList.toggle('is-dragging-file', on);
 }
 
 async function loadSample() {
@@ -1821,7 +1861,7 @@ function bindCanvasGestures() {
   }, { passive: false });
 }
 
-/* ---------------- file inputs / drag & drop ---------------- */
+/* ---------------- file inputs / drag & drop / paste ---------------- */
 
 function bindFileInputs() {
   // Upload buttons are <label for="fileInput"> — native picker, no JS click needed.
@@ -1838,21 +1878,45 @@ function bindFileInputs() {
     els.fileInput.value = '';
   });
 
-  ['dragenter', 'dragover'].forEach((name) =>
-    document.addEventListener(name, (e) => {
-      e.preventDefault();
-      els.dropzone.classList.add('dragover');
-    })
-  );
-  ['dragleave', 'drop'].forEach((name) =>
-    document.addEventListener(name, (e) => {
-      e.preventDefault();
-      if (e.target === document || !els.dropzone.contains(e.target)) {
-        els.dropzone.classList.remove('dragover');
-      }
-    })
-  );
-  document.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
+  let dragDepth = 0;
+  const hasImagePayload = (dt) => {
+    if (!dt) return false;
+    if (dt.types && [...dt.types].some((t) => t === 'Files' || t.startsWith('image/'))) return true;
+    return !!(dt.files && dt.files.length);
+  };
+
+  document.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    if (!hasImagePayload(e.dataTransfer)) return;
+    dragDepth += 1;
+    setDragHighlight(true);
+  });
+  document.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+  });
+  document.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth === 0) setDragHighlight(false);
+  });
+  document.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragDepth = 0;
+    setDragHighlight(false);
+    const file = pickImageFromDataTransfer(e.dataTransfer);
+    if (file) setSourceBlob(file);
+    else if (e.dataTransfer?.files?.length) setStatus('error', 'Please drop an image file.');
+  });
+
+  document.addEventListener('paste', (e) => {
+    const file = pickImageFromClipboardEvent(e);
+    if (!file) return;
+    // Image on the clipboard wins over typing into the text box.
+    e.preventDefault();
+    setStatus('busy', 'Pasted image — loading…');
+    setSourceBlob(file);
+  });
 }
 
 /* ---------------- daily unique visitors (by IP) ---------------- */

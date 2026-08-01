@@ -362,6 +362,45 @@ textarea:focus-visible,
   background: rgba(245, 197, 24, 0.05);
 }
 
+.dropzone-inner kbd,
+.dropzone-note kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  background: var(--surface-2);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.stage-drop-overlay {
+  position: absolute;
+  inset: 24px;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--accent);
+  border-radius: 10px;
+  background: rgba(18, 17, 15, 0.72);
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.stage-drop-overlay[hidden] {
+  display: none !important;
+}
+
+.stage.is-dragging-file #canvas {
+  opacity: 0.55;
+}
+
 .dropzone-inner {
   max-width: 440px;
   text-align: left;
